@@ -56,8 +56,11 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        setupTabs()
+        // ⚠️ الترتيب مهم جداً:
+        // 1. setupRecycler() أولاً: لإنشاء txAdapter و personAdapter
+        // 2. setupTabs() ثانياً: لأنها تستخدم txAdapter في updateUiForSection
         setupRecycler()
+        setupTabs()
         setupFabs()
         observe()
     }
