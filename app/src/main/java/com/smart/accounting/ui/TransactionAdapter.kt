@@ -41,7 +41,7 @@ class TransactionAdapter(
             else -> "$"
         }
 
-        val isPositive = item.type == "IN" || item.type == "RECEIVABLE"
+        val isPositive = item.type == "CREDIT" || item.type == "IN"
         val sign = if (isPositive) "+" else "-"
         h.b.tvAmount.text = "$sign${"%.2f".format(item.amount)}"
         h.b.tvAmount.setTextColor(
@@ -53,18 +53,12 @@ class TransactionAdapter(
 
         val meta = buildString {
             append(when (item.section) {
-                "CASH" -> "معاملة يومية"
+                "CASH" -> "معاملة"
                 "DEBT" -> "دين"
-                else -> "مصروف"
+                "EXPENSE" -> "مصروف"
+                else -> "حساب"
             })
-            append(" • ")
-            append(when (item.paymentMethod) {
-                "CASH" -> "نقداً"
-                "CREDIT" -> "آجل"
-                else -> "محفظة: ${item.walletName ?: "-"}"
-            })
-            item.personName?.let { append(" • $it") }
-            item.category?.let { append(" • $it") }
+            item.notes?.let { append(" • $it") }
         }
         h.b.tvMeta.text = meta
 

@@ -13,7 +13,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.smart.accounting.App
 import com.smart.accounting.databinding.ActivityMainBinding
-import com.smart.accounting.databinding.CardSummaryBinding
 import com.smart.accounting.util.BackupManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -23,10 +22,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private val app by lazy { application as App }
     private val vm: MainViewModel by viewModels {
-        VMFactory(app.repository, app.personRepository)
+        VMFactory(app.accountRepo, app.transactionRepo)
     }
+    private lateinit var accountAdapter: AccountAdapter
     private lateinit var txAdapter: TransactionAdapter
-    private lateinit var personAdapter: PersonAdapter
 
     private val exportDb = registerForActivityResult(
         ActivityResultContracts.CreateDocument()
@@ -43,10 +42,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("سيتم استبدال جميع البيانات الحالية. متابعة؟")
             .setPositiveButton("استعادة") { _, _ ->
                 val ok = BackupManager.restoreFromUri(this, uri)
-                if (ok) {
-                    recreate()
-                    toast("تمت الاستعادة بنجاح")
-                } else toast("فشل الاستعادة")
+                if (ok) { recreate(); toast("تمت الاستعادة بنجاح") } else toast("فشل الاستعادة")
             }
             .setNegativeButton("إلغاء", null).show()
     }
@@ -56,9 +52,6 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        // ⚠️ الترتيب مهم جداً:
-        // 1. setupRecycler() أولاً: لإنشاء txAdapter و personAdapter
-        // 2. setupTabs() ثانياً: لأنها تستخدم txAdapter في updateUiForSection
         setupRecycler()
         setupTabs()
         setupFabs()
@@ -66,10 +59,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTabs() {
+        b.tabs.addTab(b.tabs.newTab().setText("الحسابات").setTag("ACCOUNTS"))
         b.tabs.addTab(b.tabs.newTab().setText("المعاملات اليومية").setTag("CASH"))
         b.tabs.addTab(b.tabs.newTab().setText("المصروف").setTag("EXPENSE"))
         b.tabs.addTab(b.tabs.newTab().setText("الديون").setTag("DEBT"))
-        b.tabs.addTab(b.tabs.newTab().setText("الحسابات").setTag("PERSONS"))
         b.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 vm.setSection(tab.tag as String)
@@ -78,55 +71,54 @@ class MainActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
-        updateUiForSection("CASH")
+        updateUiForSection("ACCOUNTS")
     }
 
     private fun updateUiForSection(section: String) {
-        if (section == "PERSONS") {
-            b.recycler.adapter = personAdapter
+        if (section == "ACCOUNTS") {
+            b.recycler.adapter = accountAdapter
             b.fabAdd.text = "إضافة حساب"
         } else {
             b.recycler.adapter = txAdapter
-            b.fabAdd.text = "إضافة جديدة"
+            b.fabAdd.text = "إضافة عملية"
         }
     }
 
     private fun setupRecycler() {
+        accountAdapter = AccountAdapter(
+            repo = app.transactionRepo,
+            onDelete = { acc ->
+                AlertDialog.Builder(this).setTitle("حذف حساب")
+                    .setMessage("حذف \"${acc.name}\" وكل عملياته؟")
+                    .setPositiveButton("حذف") { _, _ -> vm.deleteAccount(acc) }
+                    .setNegativeButton("إلغاء", null).show()
+            },
+            onOpen = { AccountStatementDialog(it).show(supportFragmentManager, "statement") }
+        )
         txAdapter = TransactionAdapter(
             onImage = { ImagePreviewDialog(it).show(supportFragmentManager, "img") },
             onDelete = { item ->
                 AlertDialog.Builder(this).setTitle("حذف")
                     .setMessage("حذف \"${item.title}\"؟")
-                    .setPositiveButton("حذف") { _, _ -> vm.delete(item.id) }
+                    .setPositiveButton("حذف") { _, _ -> vm.deleteTransaction(item.id) }
                     .setNegativeButton("إلغاء", null).show()
             },
             onEdit = { item ->
-                AddEditDialog(item.section, item, vm.persons.value) { vm.save(it) }
+                AddEditTransactionDialog(null, item) { vm.saveTransaction(it) }
                     .show(supportFragmentManager, "edit")
             }
         )
-        personAdapter = PersonAdapter(
-            repo = app.repository,
-            onDelete = { p ->
-                AlertDialog.Builder(this).setTitle("حذف حساب")
-                    .setMessage("حذف \"${p.name}\"؟")
-                    .setPositiveButton("حذف") { _, _ -> vm.deletePerson(p) }
-                    .setNegativeButton("إلغاء", null).show()
-            },
-            onOpen = { PersonDetailDialog(it).show(supportFragmentManager, "detail") }
-        )
         b.recycler.layoutManager = LinearLayoutManager(this)
-        b.recycler.adapter = txAdapter
+        b.recycler.adapter = accountAdapter
     }
 
     private fun setupFabs() {
         b.fabAdd.setOnClickListener {
-            val sec = vm.section.value
-            if (sec == "PERSONS") {
-                AddPersonDialog { vm.addPerson(it) }.show(supportFragmentManager, "addPerson")
+            if (vm.section.value == "ACCOUNTS") {
+                AddEditAccountDialog { vm.addAccount(it) }.show(supportFragmentManager, "addAccount")
             } else {
-                AddEditDialog(sec, null, vm.persons.value) { vm.save(it) }
-                    .show(supportFragmentManager, "add")
+                AddEditTransactionDialog(null, null) { vm.saveTransaction(it) }
+                    .show(supportFragmentManager, "addTx")
             }
         }
         b.fabBackup.setOnClickListener { showBackupMenu() }
@@ -141,12 +133,7 @@ class MainActivity : AppCompatActivity() {
                     1 -> importDb.launch("*/*")
                     2 -> {
                         val f = BackupManager.stagedDbCopy(this) ?: return@setItems
-                        startActivity(
-                            Intent.createChooser(
-                                BackupManager.shareIntent(this, f),
-                                "مشاركة النسخة"
-                            )
-                        )
+                        startActivity(Intent.createChooser(BackupManager.shareIntent(this, f), "مشاركة النسخة"))
                     }
                 }
             }.show()
@@ -154,35 +141,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun observe() {
         lifecycleScope.launch {
-            vm.items.collectLatest { list ->
-                txAdapter.submitList(list)
-                b.emptyView.visibility =
-                    if (list.isEmpty() && vm.section.value != "PERSONS")
-                        View.VISIBLE else View.GONE
+            vm.accounts.collectLatest { list ->
+                accountAdapter.submitList(list)
+                if (vm.section.value == "ACCOUNTS")
+                    b.emptyView.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
             }
         }
         lifecycleScope.launch {
-            vm.persons.collectLatest { list ->
-                personAdapter.submitList(list)
-                if (vm.section.value == "PERSONS") {
-                    b.emptyView.visibility =
-                        if (list.isEmpty()) View.VISIBLE else View.GONE
-                }
+            vm.transactions.collectLatest { list ->
+                txAdapter.submitList(list)
+                if (vm.section.value != "ACCOUNTS")
+                    b.emptyView.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
             }
         }
-        lifecycleScope.launch { vm.summaryYer.collect { bindSummary(b.cardYer, it) } }
-        lifecycleScope.launch { vm.summarySar.collect { bindSummary(b.cardSar, it) } }
-        lifecycleScope.launch { vm.summaryUsd.collect { bindSummary(b.cardUsd, it) } }
-    }
-
-    private fun bindSummary(included: CardSummaryBinding, s: CurrencySummary) {
-        included.tvCurrency.text = when (s.currency) {
-            "YER" -> "ريال يمني"
-            "SAR" -> "ريال سعودي"
-            else -> "دولار"
-        }
-        included.tvBalance.text = "%.2f".format(s.balance)
-        included.tvSub.text = "+${"%.2f".format(s.income)} / -${"%.2f".format(s.expense)}"
     }
 
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_LONG).show()

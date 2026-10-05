@@ -4,32 +4,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/slate_100"
+    android:background="@color/gray_100"
     android:layoutDirection="rtl">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/navy_900">
+        android:background="@color/white"
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/navy_900"
-            app:title="المحاسب الذكي"
-            app:titleTextColor="@color/white" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="8dp">
-
-            <include layout="@layout/card_summary" android:id="@+id/cardYer" />
-            <include layout="@layout/card_summary" android:id="@+id/cardSar" />
-            <include layout="@layout/card_summary" android:id="@+id/cardUsd" />
-        </LinearLayout>
+            android:background="@color/white"
+            app:title="مدونة الحسابات"
+            app:titleTextColor="@color/gray_900"
+            app:titleCentered="true" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
@@ -43,10 +34,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/white"
-            app:tabIndicatorColor="@color/sky_500"
-            app:tabSelectedTextColor="@color/navy_900"
-            app:tabTextColor="@color/navy_800"
-            app:tabMode="scrollable" />
+            app:tabIndicatorColor="@color/orange_500"
+            app:tabIndicatorHeight="3dp"
+            app:tabSelectedTextColor="@color/orange_500"
+            app:tabTextColor="@color/gray_500"
+            app:tabMode="scrollable"
+            app:tabRippleColor="@android:color/transparent" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_200" />
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -60,15 +58,30 @@
                 android:clipToPadding="false"
                 android:padding="8dp" />
 
-            <TextView
+            <LinearLayout
                 android:id="@+id/emptyView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="لا توجد بيانات بعد"
-                android:textColor="@color/navy_800"
-                android:textSize="16sp"
-                android:visibility="gone" />
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:alpha="0.3"
+                    android:src="@android:drawable/ic_menu_agenda"
+                    app:tint="@color/gray_500" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="لا توجد بيانات بعد"
+                    android:textColor="@color/gray_500"
+                    android:textSize="15sp" />
+            </LinearLayout>
         </FrameLayout>
     </LinearLayout>
 
@@ -78,9 +91,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="16dp"
-        android:text="إضافة جديدة"
+        android:text="إضافة حساب"
         android:textColor="@color/white"
-        app:backgroundTint="@color/teal_600"
+        app:backgroundTint="@color/orange_500"
         app:icon="@android:drawable/ic_input_add"
         app:iconTint="@color/white" />
 
@@ -90,7 +103,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        app:backgroundTint="@color/navy_800"
+        app:backgroundTint="@color/blue_500"
         app:srcCompat="@android:drawable/ic_menu_save"
         app:tint="@color/white" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

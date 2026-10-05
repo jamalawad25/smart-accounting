@@ -1,24 +1,32 @@
 package com.smart.accounting.data.model
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions")
+@Entity(
+    tableName = "transactions",
+    foreignKeys = [
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("accountId")]
+)
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val section: String,
-    val title: String,
+    val accountId: Long,                // الحساب المرتبط (إلزامي)
+    val type: String,                   // DEBIT (مدين/عليه) | CREDIT (دائن/له)
     val amount: Double,
-    val currency: String,
-    val type: String,
-    val paymentMethod: String,
-    val walletName: String? = null,
-    val category: String? = null,
-    val personId: Long? = null,
-    val personName: String? = null,
-    val dueDate: String? = null,
-    val dateText: String,
+    val currency: String = "YER",       // YER | SAR | USD
+    val title: String,                  // البيان
+    val dateText: String,               // "الأحد، 04/10/2026"
     val timestamp: Long,
     val notes: String? = null,
-    val imagePath: String? = null
+    val imagePath: String? = null,
+    val section: String = "ACCOUNT"     // ACCOUNT | CASH | EXPENSE
 )
